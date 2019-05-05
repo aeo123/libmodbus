@@ -1,4 +1,11 @@
 /*
+ * @Description: 
+ * @Author: zpw
+ * @LastEditors: zpw
+ * @Date: 2019-04-19 21:06:54
+ * @LastEditTime: 2019-05-01 14:52:36
+ */
+/*
  * Copyright © 2010-2012 Stéphane Raimbault <stephane.raimbault@gmail.com>
  *
  * SPDX-License-Identifier: LGPL-2.1+
@@ -10,7 +17,6 @@
 # include <stdint.h>
 # include <sys/time.h>
 
-#include <sys/types.h>
 #include <rtthread.h>
 #include <rtdevice.h>
 
@@ -81,14 +87,14 @@ typedef struct _modbus_backend {
     int (*connect) (modbus_t *ctx);
     void (*close) (modbus_t *ctx);
     int (*flush) (modbus_t *ctx);
-    int (*select) (modbus_t *ctx, fd_set *rset, struct timeval *tv, int msg_length);
+    int (*select) (modbus_t *ctx, struct timeval *tv, uint8_t *rsp,  int msg_length);
     void (*free) (modbus_t *ctx);
 } modbus_backend_t;
 
 struct _modbus {
     /* Slave address */
     int slave;
-    /* Socket or file descriptor */
+    /* Socket  descriptor in tcp; device pointer in rtu */
     int s;
     int debug;
     int error_recovery;
@@ -96,6 +102,10 @@ struct _modbus {
     struct timeval byte_timeout;
     const modbus_backend_t *backend;
     void *backend_data;
+
+    struct {
+        int rd_size;
+    }pipe;
 };
 
 void _modbus_init_common(modbus_t *ctx);

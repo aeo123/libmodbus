@@ -1,4 +1,11 @@
 /*
+ * @Description: 
+ * @Author: zpw
+ * @LastEditors: zpw
+ * @Date: 2019-04-19 21:06:54
+ * @LastEditTime: 2019-04-30 16:57:46
+ */
+/*
  * Copyright © 2001-2011 Stéphane Raimbault <stephane.raimbault@gmail.com>
  *
  * SPDX-License-Identifier: LGPL-2.1+
@@ -7,17 +14,9 @@
 #ifndef MODBUS_RTU_PRIVATE_H
 #define MODBUS_RTU_PRIVATE_H
 
-#ifndef _MSC_VER
-#include <stdint.h>
-#else
-#include "stdint.h"
-#endif
 
-#if defined(_WIN32)
-#include <windows.h>
-#else
-#include <termios.h>
-#endif
+#include <stdint.h>
+
 
 #define _MODBUS_RTU_HEADER_LENGTH      1
 #define _MODBUS_RTU_PRESET_REQ_LENGTH  6
@@ -25,41 +24,19 @@
 
 #define _MODBUS_RTU_CHECKSUM_LENGTH    2
 
-#if defined(_WIN32)
-#if !defined(ENOTSUP)
-#define ENOTSUP WSAEOPNOTSUPP
-#endif
-
-/* WIN32: struct containing serial handle and a receive buffer */
-#define PY_BUF_SIZE 512
-struct win32_ser {
-    /* File handle */
-    HANDLE fd;
-    /* Receive buffer */
-    uint8_t buf[PY_BUF_SIZE];
-    /* Received chars */
-    DWORD n_bytes;
-};
-#endif /* _WIN32 */
 
 typedef struct _modbus_rtu {
-    /* Device: "/dev/ttyS0", "/dev/ttyUSB0" or "/dev/tty.USA19*" on Mac OS X. */
-    char *device;
+    /* Device: rt device */
+    void *device;
     /* Bauds: 9600, 19200, 57600, 115200, etc */
-    int baud;
+    uint32_t baud;
     /* Data bit */
-    uint8_t data_bit;
+    uint32_t data_bit;
     /* Stop bit */
-    uint8_t stop_bit;
+    uint32_t stop_bit;
     /* Parity: 'N', 'O', 'E' */
-    char parity;
-#if defined(_WIN32)
-    struct win32_ser w_ser;
-    DCB old_dcb;
-#else
-    /* Save old termios settings */
-    struct termios old_tios;
-#endif
+    uint32_t parity;
+
 #if HAVE_DECL_TIOCSRS485
     int serial_mode;
 #endif
@@ -67,7 +44,7 @@ typedef struct _modbus_rtu {
     int rts;
     int rts_delay;
     int onebyte_time;
-    int rts_pin;
+    long rts_pin;
     void (*set_rts) (modbus_t *ctx, int on);
 #endif
     /* To handle many slaves on the same link */

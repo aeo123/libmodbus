@@ -3,7 +3,7 @@
 #include "stdio.h"
 #include "string.h"
 
-#define RS485_RE GET_PIN(G, 8)
+#define RS485_RE GET_PIN(A, 1)
 
 static void test_thread(void *param)
 {

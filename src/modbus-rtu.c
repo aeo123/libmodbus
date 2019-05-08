@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-19 21:06:54
- * @LastEditTime: 2019-05-07 21:27:06
+ * @LastEditTime: 2019-05-08 11:28:36
  */
 /*
  * Copyright © 2001-2011 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -200,7 +200,7 @@ static int _modbus_rtu_receive(modbus_t *ctx, uint8_t *req)
         rc = 0;
         if (ctx->debug)
         {
-            printf("Confirmation to ignore\n");
+            rt_kprintf("Confirmation to ignore\n");
         }
     }
     else
@@ -231,7 +231,7 @@ static int _modbus_rtu_pre_check_confirmation(modbus_t *ctx, const uint8_t *req,
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
+            rt_kprintf(
                     "The responding slave %d isn't the requested slave %d\n",
                     rsp[0], req[0]);
         }
@@ -260,7 +260,7 @@ static int _modbus_rtu_check_integrity(modbus_t *ctx, uint8_t *msg,
     {
         if (ctx->debug)
         {
-            printf("Request for slave %d ignored (not %d)\n", slave, ctx->slave);
+            rt_kprintf("Request for slave %d ignored (not %d)\n", slave, ctx->slave);
         }
         /* Following call to check_confirmation handles this error */
         return 0;
@@ -278,7 +278,7 @@ static int _modbus_rtu_check_integrity(modbus_t *ctx, uint8_t *msg,
     {
         if (ctx->debug)
         {
-            fprintf(stderr, "ERROR CRC received 0x%0X != CRC calculated 0x%0X\n",
+            rt_kprintf( "ERROR CRC received 0x%0X != CRC calculated 0x%0X\n",
                     crc_received, crc_calculated);
         }
 
@@ -317,7 +317,7 @@ static int _modbus_rtu_connect(modbus_t *ctx)
 
     if (ctx->debug)
     {
-        printf("Opening %s at %d bauds (%d, %d, %d)\n",
+        rt_kprintf("Opening %s at %d bauds (%d, %d, %d)\n",
                serial->parent.name, ctx_rtu->baud, ctx_rtu->parity,
                ctx_rtu->data_bit, ctx_rtu->stop_bit);
     }
@@ -339,7 +339,7 @@ static int _modbus_rtu_connect(modbus_t *ctx)
     {
         if (ctx->debug)
         {
-            fprintf(stderr, "ERROR Can't open the device %s (%d)\n",
+            rt_kprintf( "ERROR Can't open the device %s (%d)\n",
                     serial->parent.name, (int)err);
         }
         return -1;
@@ -379,7 +379,7 @@ int modbus_rtu_set_serial_mode(modbus_t *ctx, int mode)
 #else
         if (ctx->debug)
         {
-            fprintf(stderr, "This function isn't supported on your platform\n");
+            rt_kprintf( "This function isn't supported on your platform\n");
         }
         errno = ENOTSUP;
         return -1;
@@ -407,7 +407,7 @@ int modbus_rtu_get_serial_mode(modbus_t *ctx)
 #else
         if (ctx->debug)
         {
-            fprintf(stderr, "This function isn't supported on your platform\n");
+            rt_kprintf( "This function isn't supported on your platform\n");
         }
         errno = ENOTSUP;
         return -1;
@@ -436,7 +436,7 @@ int modbus_rtu_get_rts(modbus_t *ctx)
 #else
         if (ctx->debug)
         {
-            fprintf(stderr, "This function isn't supported on your platform\n");
+            rt_kprintf( "This function isn't supported on your platform\n");
         }
         errno = ENOTSUP;
         return -1;
@@ -482,7 +482,7 @@ int modbus_rtu_set_rts(modbus_t *ctx, long rts_pin, int mode)
 #else
         if (ctx->debug)
         {
-            fprintf(stderr, "This function isn't supported on your platform\n");
+            rt_kprintf( "This function isn't supported on your platform\n");
         }
         errno = ENOTSUP;
         return -1;
@@ -510,7 +510,7 @@ int modbus_rtu_set_custom_rts(modbus_t *ctx, void (*set_rts)(modbus_t *ctx, int 
 #else
         if (ctx->debug)
         {
-            fprintf(stderr, "This function isn't supported on your platform\n");
+            rt_kprintf( "This function isn't supported on your platform\n");
         }
         errno = ENOTSUP;
         return -1;
@@ -540,7 +540,7 @@ int modbus_rtu_get_rts_delay(modbus_t *ctx)
 #else
         if (ctx->debug)
         {
-            fprintf(stderr, "This function isn't supported on your platform\n");
+            rt_kprintf( "This function isn't supported on your platform\n");
         }
         errno = ENOTSUP;
         return -1;
@@ -571,7 +571,7 @@ int modbus_rtu_set_rts_delay(modbus_t *ctx, int us)
 #else
         if (ctx->debug)
         {
-            fprintf(stderr, "This function isn't supported on your platform\n");
+            rt_kprintf( "This function isn't supported on your platform\n");
         }
         errno = ENOTSUP;
         return -1;
@@ -705,7 +705,7 @@ modbus_t *modbus_new_rtu(struct rt_serial_device *serial, struct serial_configur
     /* Check device argument */
     if (serial == NULL || config == NULL)
     {
-        fprintf(stderr, "The device string is empty\n");
+        rt_kprintf( "The device string is empty\n");
         errno = EINVAL;
         return NULL;
     }
@@ -713,7 +713,7 @@ modbus_t *modbus_new_rtu(struct rt_serial_device *serial, struct serial_configur
     /* Check baud argument */
     if (config->baud_rate == 0)
     {
-        fprintf(stderr, "The baud rate value must not be zero\n");
+        rt_kprintf( "The baud rate value must not be zero\n");
         errno = EINVAL;
         return NULL;
     }

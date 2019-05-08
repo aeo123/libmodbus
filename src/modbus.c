@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-29 14:23:15
- * @LastEditTime: 2019-05-07 21:31:19
+ * @LastEditTime: 2019-05-08 14:16:12
  */
 /*
  * Copyright © 2001-2011 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
-
 #include <rtthread.h>
 #include <rtdevice.h>
 
@@ -33,8 +32,6 @@
 const unsigned int libmodbus_version_major = LIBMODBUS_VERSION_MAJOR;
 const unsigned int libmodbus_version_minor = LIBMODBUS_VERSION_MINOR;
 const unsigned int libmodbus_version_micro = LIBMODBUS_VERSION_MICRO;
-
-
 
 /* 3 steps are used to parse the query */
 typedef enum
@@ -79,7 +76,7 @@ const char *modbus_strerror(int errnum)
     case EMBBADSLAVE:
         return "Response not from requested slave";
     default:
-        return strerror(errnum);
+        return 0;
     }
 }
 
@@ -87,14 +84,14 @@ void _error_print(modbus_t *ctx, const char *context)
 {
     if (ctx->debug)
     {
-        fprintf(stderr, "ERROR %s", modbus_strerror(errno));
+        rt_kprintf("ERROR %s", modbus_strerror(errno));
         if (context != NULL)
         {
-            fprintf(stderr, ": %s\n", context);
+            rt_kprintf(": %s\n", context);
         }
         else
         {
-            fprintf(stderr, "\n");
+            rt_kprintf("\n");
         }
     }
 }
@@ -120,7 +117,7 @@ int modbus_flush(modbus_t *ctx)
     if (rc != -1 && ctx->debug)
     {
         /* Not all backends are able to return the number of bytes flushed */
-        printf("Bytes flushed (%d)\n", rc);
+        rt_kprintf("Bytes flushed (%d)\n", rc);
     }
     return rc;
 }
@@ -175,8 +172,8 @@ static int send_msg(modbus_t *ctx, uint8_t *msg, int msg_length)
     if (ctx->debug)
     {
         for (i = 0; i < msg_length; i++)
-            printf("[%.2X]", msg[i]);
-        printf("\n");
+            rt_kprintf("[%.2X]", msg[i]);
+        rt_kprintf("\n");
     }
 
     /* In recovery mode, the write command will be issued until to be
@@ -383,15 +380,13 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
     {
         if (msg_type == MSG_INDICATION)
         {
-            printf("Waiting for a indication...\n");
+            rt_kprintf("Waiting for a indication...\n");
         }
         else
         {
-            printf("Waiting for a confirmation...\n");
+            rt_kprintf("Waiting for a confirmation...\n");
         }
     }
-
-
 
     /* We need to analyse the message step by step.  At the first step, we want
      * to reach the function code because all packets contain this
@@ -465,7 +460,7 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
         {
             int i;
             for (i = 0; i < rc; i++)
-                printf("<%.2X>", msg[msg_length + i]);
+                rt_kprintf("<%.2X>", msg[msg_length + i]);
         }
 
         /* Sums bytes received */
@@ -518,7 +513,7 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
     }
 
     if (ctx->debug)
-        printf("\n");
+        rt_kprintf("\n");
 
     return ctx->backend->check_integrity(ctx, msg, msg_length);
 }
@@ -619,9 +614,9 @@ static int check_confirmation(modbus_t *ctx, uint8_t *req,
         {
             if (ctx->debug)
             {
-                fprintf(stderr,
-                        "Received function not corresponding to the request (0x%X != 0x%X)\n",
-                        function, req[offset]);
+                rt_kprintf(
+                    "Received function not corresponding to the request (0x%X != 0x%X)\n",
+                    function, req[offset]);
             }
             if (ctx->error_recovery & MODBUS_ERROR_RECOVERY_PROTOCOL)
             {
@@ -674,9 +669,9 @@ static int check_confirmation(modbus_t *ctx, uint8_t *req,
         {
             if (ctx->debug)
             {
-                fprintf(stderr,
-                        "Quantity not corresponding to the request (%d != %d)\n",
-                        rsp_nb_value, req_nb_value);
+                rt_kprintf(
+                    "Quantity not corresponding to the request (%d != %d)\n",
+                    rsp_nb_value, req_nb_value);
             }
 
             if (ctx->error_recovery & MODBUS_ERROR_RECOVERY_PROTOCOL)
@@ -693,9 +688,9 @@ static int check_confirmation(modbus_t *ctx, uint8_t *req,
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "Message length not corresponding to the computed length (%d != %d)\n",
-                    rsp_length, rsp_length_computed);
+            rt_kprintf(
+                "Message length not corresponding to the computed length (%d != %d)\n",
+                rsp_length, rsp_length_computed);
         }
         if (ctx->error_recovery & MODBUS_ERROR_RECOVERY_PROTOCOL)
         {
@@ -750,11 +745,17 @@ static int response_exception(modbus_t *ctx, sft_t *sft,
     /* Print debug message */
     if (ctx->debug)
     {
-        va_list ap;
+        va_list args;
+        rt_size_t length;
+        char rt_log_buf[RT_CONSOLEBUF_SIZE];
 
-        va_start(ap, template);
-        vfprintf(stderr, template, ap);
-        va_end(ap);
+        rt_memset(rt_log_buf, 0, RT_CONSOLEBUF_SIZE);
+        va_start(args, template);
+        length = rt_vsnprintf(rt_log_buf, sizeof(rt_log_buf) - 1, template, args);
+        if (length > RT_CONSOLEBUF_SIZE - 1)
+            rt_log_buf[RT_CONSOLEBUF_SIZE - 1] = 0;
+        rt_kputs(template);
+        va_end(args);
     }
 
     /* Flush if required */
@@ -785,7 +786,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req, uint8_t *rsp,
     int slave;
     int function;
     uint16_t address;
-    
+
     int rsp_length = 0;
     sft_t sft;
 
@@ -1034,7 +1035,7 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req, uint8_t *rsp,
     case MODBUS_FC_READ_EXCEPTION_STATUS:
         if (ctx->debug)
         {
-            fprintf(stderr, "FIXME Not implemented\n");
+            rt_kprintf("FIXME Not implemented\n");
         }
         errno = ENOPROTOOPT;
         return -1;
@@ -1230,9 +1231,9 @@ int modbus_read_bits(modbus_t *ctx, int addr, int nb, uint8_t *dest)
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "ERROR Too many bits requested (%d > %d)\n",
-                    nb, MODBUS_MAX_READ_BITS);
+            rt_kprintf(
+                "ERROR Too many bits requested (%d > %d)\n",
+                nb, MODBUS_MAX_READ_BITS);
         }
         errno = EMBMDATA;
         return -1;
@@ -1261,9 +1262,9 @@ int modbus_read_input_bits(modbus_t *ctx, int addr, int nb, uint8_t *dest)
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "ERROR Too many discrete inputs requested (%d > %d)\n",
-                    nb, MODBUS_MAX_READ_BITS);
+            rt_kprintf(
+                "ERROR Too many discrete inputs requested (%d > %d)\n",
+                nb, MODBUS_MAX_READ_BITS);
         }
         errno = EMBMDATA;
         return -1;
@@ -1290,9 +1291,9 @@ static int read_registers(modbus_t *ctx, int function, int addr, int nb,
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "ERROR Too many registers requested (%d > %d)\n",
-                    nb, MODBUS_MAX_READ_REGISTERS);
+            rt_kprintf(
+                "ERROR Too many registers requested (%d > %d)\n",
+                nb, MODBUS_MAX_READ_REGISTERS);
         }
         errno = EMBMDATA;
         return -1;
@@ -1343,9 +1344,9 @@ int modbus_read_registers(modbus_t *ctx, int addr, int nb, uint16_t *dest)
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "ERROR Too many registers requested (%d > %d)\n",
-                    nb, MODBUS_MAX_READ_REGISTERS);
+            rt_kprintf(
+                "ERROR Too many registers requested (%d > %d)\n",
+                nb, MODBUS_MAX_READ_REGISTERS);
         }
         errno = EMBMDATA;
         return -1;
@@ -1370,9 +1371,9 @@ int modbus_read_input_registers(modbus_t *ctx, int addr, int nb,
 
     if (nb > MODBUS_MAX_READ_REGISTERS)
     {
-        fprintf(stderr,
-                "ERROR Too many input registers requested (%d > %d)\n",
-                nb, MODBUS_MAX_READ_REGISTERS);
+        rt_kprintf(
+            "ERROR Too many input registers requested (%d > %d)\n",
+            nb, MODBUS_MAX_READ_REGISTERS);
         errno = EMBMDATA;
         return -1;
     }
@@ -1461,8 +1462,8 @@ int modbus_write_bits(modbus_t *ctx, int addr, int nb, const uint8_t *src)
     {
         if (ctx->debug)
         {
-            fprintf(stderr, "ERROR Writing too many bits (%d > %d)\n",
-                    nb, MODBUS_MAX_WRITE_BITS);
+            rt_kprintf("ERROR Writing too many bits (%d > %d)\n",
+                       nb, MODBUS_MAX_WRITE_BITS);
         }
         errno = EMBMDATA;
         return -1;
@@ -1527,9 +1528,9 @@ int modbus_write_registers(modbus_t *ctx, int addr, int nb, const uint16_t *src)
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "ERROR Trying to write to too many registers (%d > %d)\n",
-                    nb, MODBUS_MAX_WRITE_REGISTERS);
+            rt_kprintf(
+                "ERROR Trying to write to too many registers (%d > %d)\n",
+                nb, MODBUS_MAX_WRITE_REGISTERS);
         }
         errno = EMBMDATA;
         return -1;
@@ -1625,9 +1626,9 @@ int modbus_write_and_read_registers(modbus_t *ctx,
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "ERROR Too many registers to write (%d > %d)\n",
-                    write_nb, MODBUS_MAX_WR_WRITE_REGISTERS);
+            rt_kprintf(
+                "ERROR Too many registers to write (%d > %d)\n",
+                write_nb, MODBUS_MAX_WR_WRITE_REGISTERS);
         }
         errno = EMBMDATA;
         return -1;
@@ -1637,9 +1638,9 @@ int modbus_write_and_read_registers(modbus_t *ctx,
     {
         if (ctx->debug)
         {
-            fprintf(stderr,
-                    "ERROR Too many registers requested (%d > %d)\n",
-                    read_nb, MODBUS_MAX_WR_READ_REGISTERS);
+            rt_kprintf(
+                "ERROR Too many registers requested (%d > %d)\n",
+                read_nb, MODBUS_MAX_WR_READ_REGISTERS);
         }
         errno = EMBMDATA;
         return -1;
@@ -2034,6 +2035,7 @@ void modbus_mapping_free(modbus_mapping_t *mb_mapping)
     free(mb_mapping);
 }
 
+#define HAVE_STRLCPY
 #ifndef HAVE_STRLCPY
 /*
  * Function strlcpy was originally developed by

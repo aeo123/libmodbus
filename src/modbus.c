@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-29 14:23:15
- * @LastEditTime: 2019-05-01 15:16:53
+ * @LastEditTime: 2019-05-07 21:31:19
  */
 /*
  * Copyright © 2001-2011 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -373,8 +373,8 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
 {
     int rc;
 
-    struct timeval tv;
-    struct timeval *p_tv;
+    struct timeval_t tv;
+    struct timeval_t *p_tv;
     int length_to_read;
     int msg_length = 0;
     _step_t step;

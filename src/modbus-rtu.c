@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-19 21:06:54
- * @LastEditTime: 2019-05-01 16:04:51
+ * @LastEditTime: 2019-05-07 21:27:06
  */
 /*
  * Copyright © 2001-2011 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -180,7 +180,7 @@ static void _modbus_rtu_ioctl_rts(modbus_t *ctx, int on)
 }
 #endif
 
-static ssize_t _modbus_rtu_send(modbus_t *ctx, const uint8_t *req, int req_length)
+static size_t _modbus_rtu_send(modbus_t *ctx, const uint8_t *req, int req_length)
 {
     //go tx mode
     _modbus_rtu_ioctl_rts(ctx, 1);
@@ -215,7 +215,7 @@ static int _modbus_rtu_receive(modbus_t *ctx, uint8_t *req)
     return rc;
 }
 
-static ssize_t _modbus_rtu_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
+static size_t _modbus_rtu_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
 {
     return rt_device_read(((modbus_rtu_t *)ctx->backend_data)->device, 0, rsp, rsp_length);
 }
@@ -626,7 +626,7 @@ static int _modbus_rtu_flush(modbus_t *ctx)
 }
 
 static int _modbus_rtu_select(modbus_t *ctx,
-                              struct timeval *tv, uint8_t *rsp, int length_to_read)
+                              struct timeval_t *tv, uint8_t *rsp, int length_to_read)
 {
 
     int ms;

@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-19 21:06:54
- * @LastEditTime: 2019-05-01 14:52:36
+ * @LastEditTime: 2019-05-07 21:31:06
  */
 /*
  * Copyright © 2010-2012 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -15,7 +15,7 @@
 #define MODBUS_PRIVATE_H
 
 # include <stdint.h>
-# include <sys/time.h>
+# include <stdio.h>
 
 #include <rtthread.h>
 #include <rtdevice.h>
@@ -66,6 +66,11 @@ typedef struct _sft {
     int t_id;
 } sft_t;
 
+struct timeval_t {
+	long	tv_sec;		/* seconds */
+	long	tv_usec;	/* and microseconds */
+};
+
 typedef struct _modbus_backend {
     unsigned int backend_type;
     unsigned int header_length;
@@ -77,9 +82,9 @@ typedef struct _modbus_backend {
     int (*build_response_basis) (sft_t *sft, uint8_t *rsp);
     int (*prepare_response_tid) (const uint8_t *req, int *req_length);
     int (*send_msg_pre) (uint8_t *req, int req_length);
-    ssize_t (*send) (modbus_t *ctx, const uint8_t *req, int req_length);
+    size_t (*send) (modbus_t *ctx, const uint8_t *req, int req_length);
     int (*receive) (modbus_t *ctx, uint8_t *req);
-    ssize_t (*recv) (modbus_t *ctx, uint8_t *rsp, int rsp_length);
+    size_t (*recv) (modbus_t *ctx, uint8_t *rsp, int rsp_length);
     int (*check_integrity) (modbus_t *ctx, uint8_t *msg,
                             const int msg_length);
     int (*pre_check_confirmation) (modbus_t *ctx, const uint8_t *req,
@@ -87,7 +92,7 @@ typedef struct _modbus_backend {
     int (*connect) (modbus_t *ctx);
     void (*close) (modbus_t *ctx);
     int (*flush) (modbus_t *ctx);
-    int (*select) (modbus_t *ctx, struct timeval *tv, uint8_t *rsp,  int msg_length);
+    int (*select) (modbus_t *ctx, struct timeval_t *tv, uint8_t *rsp,  int msg_length);
     void (*free) (modbus_t *ctx);
 } modbus_backend_t;
 
@@ -98,8 +103,8 @@ struct _modbus {
     int s;
     int debug;
     int error_recovery;
-    struct timeval response_timeout;
-    struct timeval byte_timeout;
+    struct timeval_t response_timeout;
+    struct timeval_t byte_timeout;
     const modbus_backend_t *backend;
     void *backend_data;
 

@@ -1,4 +1,11 @@
 /*
+ * @Description: 
+ * @Author: zpw
+ * @Date: 2019-05-08 11:09:00
+ * @LastEditTime: 2019-05-20 11:33:12
+ * @LastEditors: zpw
+ */
+/*
  * Copyright © 2001-2010 Stéphane Raimbault <stephane.raimbault@gmail.com>
  *
  * SPDX-License-Identifier: LGPL-2.1+
@@ -39,6 +46,7 @@ MODBUS_BEGIN_DECLS
  */
 #define MODBUS_TCP_MAX_ADU_LENGTH  260
 
+MODBUS_API int modbus_tcp_set(modbus_t *ctx, const char *ip, int port);
 MODBUS_API modbus_t* modbus_new_tcp(const char *ip_address, int port);
 MODBUS_API int modbus_tcp_listen(modbus_t *ctx, int nb_connection);
 MODBUS_API int modbus_tcp_accept(modbus_t *ctx, int *s);

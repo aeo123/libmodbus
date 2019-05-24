@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-19 21:06:54
- * @LastEditTime: 2019-05-07 21:31:06
+ * @LastEditTime: 2019-05-23 15:54:48
  */
 /*
  * Copyright © 2010-2012 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -107,7 +107,8 @@ struct _modbus {
     struct timeval_t byte_timeout;
     const modbus_backend_t *backend;
     void *backend_data;
-
+    modbus_callback_t* cb_list[2];
+    
     struct {
         int rd_size;
     }pipe;

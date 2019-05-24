@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-29 14:23:15
- * @LastEditTime: 2019-05-08 14:16:12
+ * @LastEditTime: 2019-05-23 16:27:34
  */
 /*
  * Copyright © 2001-2011 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -24,6 +24,10 @@
 
 #include "modbus.h"
 #include "modbus-private.h"
+
+// #define LOG_LVL LOG_LVL_ERROR
+// #define LOG_TAG "drv.mbus"
+// #include <drv_log.h>
 
 /* Internal use */
 #define MSG_LENGTH_UNDEFINED -1
@@ -432,13 +436,12 @@ int _modbus_receive_msg(modbus_t *ctx, uint8_t *msg, msg_type_t msg_type)
             return -1;
         }
 
-        //rc = ctx->backend->recv(ctx, msg + msg_length, length_to_read);
+        rc = ctx->backend->recv(ctx, msg + msg_length, length_to_read);
         if (rc == 0)
         {
             errno = ECONNRESET;
             rc = -1;
         }
-
         if (rc == -1)
         {
             _error_print(ctx, "read");
@@ -1129,6 +1132,129 @@ int modbus_reply(modbus_t *ctx, const uint8_t *req, uint8_t *rsp,
     return (slave == MODBUS_BROADCAST_ADDRESS) ? 0 : send_msg(ctx, rsp, rsp_length);
 }
 
+/**
+ * @brief  modbus写操作成功后执行对应的回调函数
+ * @note   
+ * @param  *ctx: 
+ * @param  *req: 
+ * @param  *mb_mapping: 
+ * @retval 
+ */
+int modbus_wrt_callback(modbus_t *ctx, const uint8_t *req, modbus_mapping_t *mb_mapping)
+{
+    int offset = ctx->backend->header_length;
+    int function = req[offset];
+    uint16_t address = (req[offset + 1] << 8) + req[offset + 2];
+    int nb = (req[offset + 3] << 8) + req[offset + 4];
+    int mapping_address;
+
+    switch (function)
+    {
+    case (MODBUS_FC_WRITE_SINGLE_COIL):
+    case (MODBUS_FC_WRITE_MULTIPLE_COILS):
+    {
+        modbus_callback_t *p_list = ctx->cb_list[0];
+        mapping_address = address - mb_mapping->start_bits;
+
+        if (p_list == NULL)
+            return 1;
+        for (; p_list != NULL; p_list = p_list->next)
+        {
+            if (address >= p_list->start_addr && address <= p_list->end_addr)
+            {
+                p_list->callback(address, nb, (uint16_t*)&mb_mapping->tab_bits[mapping_address]);
+                break;
+            }
+        }
+        break;
+    }
+    case (MODBUS_FC_WRITE_SINGLE_REGISTER):
+    case (MODBUS_FC_WRITE_MULTIPLE_REGISTERS):
+    {
+        modbus_callback_t *p_list = ctx->cb_list[1];
+        mapping_address = address - mb_mapping->start_registers;
+
+        if (p_list == NULL)
+            return 1;
+        for (; p_list != NULL; p_list = p_list->next)
+        {
+            if (address >= p_list->start_addr && address <= p_list->end_addr)
+            {
+                p_list->callback(address, nb, &mb_mapping->tab_registers[mapping_address]);
+                break;
+            }
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief  添加一条callback
+ * @note   
+ * @param  *ctx: 
+ * @retval 
+ */
+int modbus_wrt_callback_add(modbus_t *ctx, int function,
+                            uint16_t satrt, uint16_t end,
+                            void (*callback)(uint16_t addr, uint16_t nb, uint16_t *value))
+{
+    modbus_callback_t *p_list = (modbus_callback_t *)malloc(sizeof(modbus_callback_t));
+    if (p_list == RT_NULL)
+    {
+        return -1;
+    }
+
+    p_list->callback = callback;
+    p_list->start_addr = satrt;
+    p_list->end_addr = end;
+    p_list->next = NULL;
+
+    modbus_callback_t *idx;
+    if (function == MODBUS_FC_WRITE_SINGLE_COIL || function == MODBUS_FC_WRITE_MULTIPLE_COILS)
+    {
+        idx = ctx->cb_list[0];
+        while (idx != NULL)
+            idx = idx->next;
+        idx = p_list;
+    }
+    else if (function == MODBUS_FC_WRITE_SINGLE_REGISTER || function == MODBUS_FC_WRITE_MULTIPLE_REGISTERS)
+    {
+        idx = ctx->cb_list[1];
+        while (idx != NULL)
+           idx = idx->next;
+        idx = p_list;
+    }
+    return 0;
+}
+
+/**
+ * @brief  free掉callback的空间
+ * @note   
+ * @param  *ctx: 
+ * @retval 
+ */
+int modbus_wrt_callback_free(modbus_t *ctx)
+{
+    modbus_callback_t *p_list;
+    modbus_callback_t *temp;
+    for (int i = 0; i < 2; i++)
+    {
+        p_list = ctx->cb_list[i];
+        for (; p_list != NULL; p_list = temp)
+        {
+            temp = p_list->next;
+            free(p_list);
+        }
+        ctx->cb_list[i] = NULL;
+    }
+    return 0;
+}
+
 int modbus_reply_exception(modbus_t *ctx, const uint8_t *req,
                            unsigned int exception_code)
 {
@@ -1749,6 +1875,9 @@ void _modbus_init_common(modbus_t *ctx)
 
     ctx->byte_timeout.tv_sec = 0;
     ctx->byte_timeout.tv_usec = _BYTE_TIMEOUT;
+
+    ctx->cb_list[0] = NULL;
+    ctx->cb_list[1] = NULL;
 }
 
 /* Define the slave number */
@@ -1998,6 +2127,103 @@ modbus_mapping_t *modbus_mapping_new_start_address(
     {
         mb_mapping->tab_input_registers =
             (uint16_t *)malloc(nb_input_registers * sizeof(uint16_t));
+        if (mb_mapping->tab_input_registers == NULL)
+        {
+            free(mb_mapping->tab_registers);
+            free(mb_mapping->tab_input_bits);
+            free(mb_mapping->tab_bits);
+            free(mb_mapping);
+            return NULL;
+        }
+        memset(mb_mapping->tab_input_registers, 0,
+               nb_input_registers * sizeof(uint16_t));
+    }
+
+    return mb_mapping;
+}
+
+modbus_mapping_t *modbus_mapping_mem_start_address(
+    uint8_t *address_bits, unsigned int start_bits, unsigned int nb_bits,
+    uint8_t *address_input_bits, unsigned int start_input_bits, unsigned int nb_input_bits,
+    uint16_t *address_registers, unsigned int start_registers, unsigned int nb_registers,
+    uint16_t *address_input_registers, unsigned int start_input_registers, unsigned int nb_input_registers)
+{
+    modbus_mapping_t *mb_mapping;
+
+    mb_mapping = (modbus_mapping_t *)malloc(sizeof(modbus_mapping_t));
+    if (mb_mapping == NULL)
+    {
+        return NULL;
+    }
+
+    /* 0X */
+    mb_mapping->nb_bits = nb_bits;
+    mb_mapping->start_bits = start_bits;
+    if (nb_bits == 0)
+    {
+        mb_mapping->tab_bits = NULL;
+    }
+    else
+    {
+        /* Negative number raises a POSIX error */
+        mb_mapping->tab_bits = (uint8_t *)address_bits;
+        if (mb_mapping->tab_bits == NULL)
+        {
+            free(mb_mapping);
+            return NULL;
+        }
+        memset(mb_mapping->tab_bits, 0, nb_bits * sizeof(uint8_t));
+    }
+
+    /* 1X */
+    mb_mapping->nb_input_bits = nb_input_bits;
+    mb_mapping->start_input_bits = start_input_bits;
+    if (nb_input_bits == 0)
+    {
+        mb_mapping->tab_input_bits = NULL;
+    }
+    else
+    {
+        mb_mapping->tab_input_bits = address_input_bits;
+        if (mb_mapping->tab_input_bits == NULL)
+        {
+            free(mb_mapping->tab_bits);
+            free(mb_mapping);
+            return NULL;
+        }
+        memset(mb_mapping->tab_input_bits, 0, nb_input_bits * sizeof(uint8_t));
+    }
+
+    /* 4X */
+    mb_mapping->nb_registers = nb_registers;
+    mb_mapping->start_registers = start_registers;
+    if (nb_registers == 0)
+    {
+        mb_mapping->tab_registers = NULL;
+    }
+    else
+    {
+        mb_mapping->tab_registers = address_registers;
+        if (mb_mapping->tab_registers == NULL)
+        {
+            free(mb_mapping->tab_input_bits);
+            free(mb_mapping->tab_bits);
+            free(mb_mapping);
+            return NULL;
+        }
+        memset(mb_mapping->tab_registers, 0, nb_registers * sizeof(uint16_t));
+    }
+
+    /* 3X */
+    mb_mapping->nb_input_registers = nb_input_registers;
+    mb_mapping->start_input_registers = start_input_registers;
+    if (nb_input_registers == 0)
+    {
+        mb_mapping->tab_input_registers = NULL;
+    }
+    else
+    {
+        mb_mapping->tab_input_registers = address_input_registers;
         if (mb_mapping->tab_input_registers == NULL)
         {
             free(mb_mapping->tab_registers);

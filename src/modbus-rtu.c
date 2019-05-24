@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-19 21:06:54
- * @LastEditTime: 2019-05-08 11:28:36
+ * @LastEditTime: 2019-05-18 17:11:14
  */
 /*
  * Copyright © 2001-2011 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -217,7 +217,8 @@ static int _modbus_rtu_receive(modbus_t *ctx, uint8_t *req)
 
 static size_t _modbus_rtu_recv(modbus_t *ctx, uint8_t *rsp, int rsp_length)
 {
-    return rt_device_read(((modbus_rtu_t *)ctx->backend_data)->device, 0, rsp, rsp_length);
+    //return rt_device_read(((modbus_rtu_t *)ctx->backend_data)->device, 0, rsp, rsp_length);
+    return rsp_length;
 }
 
 static int _modbus_rtu_flush(modbus_t *);

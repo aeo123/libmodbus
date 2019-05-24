@@ -3,7 +3,7 @@
  * @Author: zpw
  * @LastEditors: zpw
  * @Date: 2019-04-30 15:00:45
- * @LastEditTime: 2019-05-01 15:18:37
+ * @LastEditTime: 2019-05-23 16:28:47
  */
 /*
  * Copyright © 2001-2013 Stéphane Raimbault <stephane.raimbault@gmail.com>
@@ -190,6 +190,14 @@ typedef enum
     MODBUS_ERROR_RECOVERY_PROTOCOL = (1 << 2)
 } modbus_error_recovery_mode;
 
+typedef struct
+{
+    int start_addr;
+    int end_addr;
+    void (*callback)(uint16_t addr, uint16_t nb, uint16_t *value);
+    void *next;
+} modbus_callback_t;
+
 MODBUS_API int modbus_set_slave(modbus_t *ctx, int slave);
 MODBUS_API int modbus_set_error_recovery(modbus_t *ctx, modbus_error_recovery_mode error_recovery);
 MODBUS_API int modbus_set_socket(modbus_t *ctx, int s);
@@ -233,6 +241,12 @@ MODBUS_API modbus_mapping_t *modbus_mapping_new_start_address(
     unsigned int start_registers, unsigned int nb_registers,
     unsigned int start_input_registers, unsigned int nb_input_registers);
 
+MODBUS_API modbus_mapping_t *modbus_mapping_mem_start_address(
+    uint8_t *address_bits, unsigned int start_bits, unsigned int nb_bits,
+    uint8_t *address_input_bits, unsigned int start_input_bits, unsigned int nb_input_bits,
+    uint16_t *address_registers, unsigned int start_registers, unsigned int nb_registers,
+    uint16_t *address_input_registers, unsigned int start_input_registers, unsigned int nb_input_registers);
+
 MODBUS_API modbus_mapping_t *modbus_mapping_new(int nb_bits, int nb_input_bits,
                                                 int nb_registers, int nb_input_registers);
 MODBUS_API void modbus_mapping_free(modbus_mapping_t *mb_mapping);
@@ -243,11 +257,16 @@ MODBUS_API int modbus_receive(modbus_t *ctx, uint8_t *req);
 
 MODBUS_API int modbus_receive_confirmation(modbus_t *ctx, uint8_t *rsp);
 
-MODBUS_API int modbus_reply(modbus_t *ctx, const uint8_t *req,  uint8_t *rsp,
+MODBUS_API int modbus_reply(modbus_t *ctx, const uint8_t *req, uint8_t *rsp,
                             int req_length, modbus_mapping_t *mb_mapping);
 MODBUS_API int modbus_reply_exception(modbus_t *ctx, const uint8_t *req,
                                       unsigned int exception_code);
 
+int modbus_wrt_callback(modbus_t *ctx, const uint8_t *req, modbus_mapping_t *mb_mapping);
+int modbus_wrt_callback_add(modbus_t *ctx, int function,
+                            uint16_t satrt, uint16_t end,
+                            void (*callback)(uint16_t addr, uint16_t nb, uint16_t *value));
+int modbus_wrt_callback_free(modbus_t *ctx);
 /**
  * UTILS FUNCTIONS
  **/
